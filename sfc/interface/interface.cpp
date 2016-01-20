@@ -100,6 +100,10 @@ void Interface::load(unsigned id) {
   if(id == ID::Satellaview) cartridge.load_satellaview();
   if(id == ID::SufamiTurboSlotA) cartridge.load_sufami_turbo_a();
   if(id == ID::SufamiTurboSlotB) cartridge.load_sufami_turbo_b();
+
+#ifdef DEBUGGER
+  tracerEnable(true);
+#endif
 }
 
 void Interface::save() {

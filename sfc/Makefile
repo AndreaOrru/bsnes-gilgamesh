@@ -12,6 +12,7 @@ sfc_objects += sfc-satellaviewcart sfc-sufamiturbo
 sfc_objects += sfc-hledsp1 sfc-hledsp2 sfc-hledsp3 sfc-hledsp4
 sfc_objects += sfc-hlecx4 sfc-hlest0010
 sfc_objects += sfc-sgbexternal
+sfc_objects += sfc-gilgamesh
 
 ifeq ($(profile),accuracy)
   profflags := -DPROFILE_ACCURACY
@@ -82,3 +83,5 @@ obj/sfc-hlecx4-$(profile).o:          $(sfc)/chip/cx4/cx4.cpp $(sfc)/chip/cx4/*
 obj/sfc-hlest0010-$(profile).o:       $(sfc)/chip/st0010/st0010.cpp $(sfc)/chip/st0010/*
 
 obj/sfc-sgbexternal-$(profile).o:     $(sfc)/chip/sgb-external/sgb-external.cpp $(sfc)/chip/sgb-external/*
+
+obj/sfc-gilgamesh-$(profile).o:       $(sfc)/gilgamesh/gilgamesh.cpp $(call rwildcard,$(sfc)/gilgamesh)

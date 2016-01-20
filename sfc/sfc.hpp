@@ -74,6 +74,8 @@ namespace SuperFamicom {
 
   #include <sfc/memory/memory-inline.hpp>
   #include <sfc/ppu/counter/counter-inline.hpp>
+
+  #include <sfc/gilgamesh/gilgamesh.hpp>
 }
 
 #endif

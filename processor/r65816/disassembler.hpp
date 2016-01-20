@@ -1,5 +1,10 @@
 enum : unsigned {
-  OPTYPE_DP = 0,    //dp
+  OPTYPE_NONE = 0,  //none
+  OPTYPE_A,         //a
+  OPTYPE_IMM_8,     //#$xx
+  OPTYPE_IMM_A,     //m ? #$xx : #$xxxx
+  OPTYPE_IMM_X,     //x ? #$xx : #$xxxx
+  OPTYPE_DP,        //dp
   OPTYPE_DPX,       //dp,x
   OPTYPE_DPY,       //dp,y
   OPTYPE_IDP,       //(dp)
@@ -20,6 +25,7 @@ enum : unsigned {
   OPTYPE_IADDR_PC,  //pbr:(addr)
   OPTYPE_RELB,      //relb
   OPTYPE_RELW,      //relw
+  OPTYPE_MV,        //destbk,srcbk
 };
 
 void disassemble_opcode(char* output, uint32 addr);
