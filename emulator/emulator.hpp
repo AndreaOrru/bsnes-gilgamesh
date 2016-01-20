@@ -1,6 +1,10 @@
 #ifndef EMULATOR_HPP
 #define EMULATOR_HPP
 
+#ifdef DEBUGGER
+  #include <sqlite3.h>
+#endif
+
 namespace Emulator {
   static const char Name[] = "higan";
   static const char Version[] = "094";

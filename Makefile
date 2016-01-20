@@ -20,7 +20,7 @@ gba := gba
 profile := balanced
 target  := libretro
 
-options += debugger
+options := debugger
 # arch := x86
 # console := true
 
@@ -46,6 +46,10 @@ ifeq ($(pgo),instrument)
   link += -lgcov
 else ifeq ($(pgo),optimize)
   flags += -fprofile-use
+endif
+
+ifneq ($(findstring debugger,$(options)),)
+	link += -lsqlite3
 endif
 
 ifeq ($(compiler),)

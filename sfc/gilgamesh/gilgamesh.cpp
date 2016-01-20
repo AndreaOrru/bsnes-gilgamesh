@@ -9,4 +9,4 @@ void Gilgamesh::trace() {}
 
 
 }
-#endif  // DEBUGGER
+#endif // DEBUGGER

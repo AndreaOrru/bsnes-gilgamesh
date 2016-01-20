@@ -8,4 +8,4 @@ struct Gilgamesh {
 extern Gilgamesh gilgamesh;
 
 
-#endif  // DEBUGGER
+#endif // DEBUGGER

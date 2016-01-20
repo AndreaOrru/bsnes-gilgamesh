@@ -136,13 +136,14 @@ struct Interface : Emulator::Interface {
 
   void paletteUpdate(PaletteMode mode);
 
-  //debugger functions
+#ifdef DEBUGGER
+  sqlite3* db;
   bool tracerEnable(bool);
   void exportMemory();
+#endif
 
   Interface();
 
-  file tracer;
   vector<Device> device;
 };
 
