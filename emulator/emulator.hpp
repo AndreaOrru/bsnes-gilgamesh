@@ -2,6 +2,8 @@
 #define EMULATOR_HPP
 
 #ifdef DEBUGGER
+  #include <unordered_map>
+  #include <unordered_set>
   #include <sqlite3.h>
 #endif
 

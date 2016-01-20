@@ -20,7 +20,7 @@ gba := gba
 profile := balanced
 target  := libretro
 
-options := debugger
+options += debugger
 # arch := x86
 # console := true
 
