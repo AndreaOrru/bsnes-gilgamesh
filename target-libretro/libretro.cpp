@@ -157,7 +157,7 @@ struct Callbacks : Emulator::Interface::Bind {
       for (unsigned y = 0; y < height; y++, data += pitch >> 2, ptr += width)
          for (unsigned x = 0; x < width; x++)
             ptr[x] = palette[data[x]];
-      
+
       pvideo_refresh(video_buffer, width, height, width*sizeof(uint32_t));
       pinput_poll();
     }
@@ -167,7 +167,7 @@ struct Callbacks : Emulator::Interface::Bind {
       for (unsigned y = 0; y < height; y++, data += pitch >> 2, ptr += width)
          for (unsigned x = 0; x < width; x++)
             ptr[x] = palette[data[x]];
-      
+
       pvideo_refresh(video_buffer_16, width, height, width*sizeof(uint16_t));
       pinput_poll();
     }
@@ -374,9 +374,11 @@ struct Callbacks : Emulator::Interface::Bind {
     if (video_fmt == video_fmt_32) return (r << 16) | (g << 8) | (b << 0);
     if (video_fmt == video_fmt_16) return (r>>3 << 11) | (g>>2 << 5) | (b>>3 << 0);
     if (video_fmt == video_fmt_15) return (r>>3 << 10) | (g>>3 << 5) | (b>>3 << 0);
+
+    __builtin_unreachable();
   }
 
-  void notify(string text) {
+  void notify(string text) override {
     output(RETRO_LOG_ERROR, "%s\n", (const char*)text);
   }
 
@@ -592,7 +594,7 @@ void retro_init(void) {
 
   core_interface.init();
   core_gb_interface.init();
-  
+
   core_bind.sampleBufPos = 0;
 
   SuperFamicom::system.init();
@@ -659,11 +661,11 @@ void retro_cheat_set(unsigned index, bool enable, const char *code) {
   cheatList[index].enable = enable;
   cheatList[index].code = code;
   lstring list;
-  
+
   for(unsigned n = 0; n < cheatList.size(); n++) {
     if(cheatList[n].enable) list.append(cheatList[n].code);
   }
-  
+
   core_interface.setCheats(list);
 #endif
 }
@@ -920,17 +922,17 @@ bool retro_load_game(const struct retro_game_info *info) {
   std::string manifest;
   if (core_bind.manifest)
     manifest = std::string((const char*)info->data, info->size); // Might not be 0 terminated.
-  
+
   bool ret=snes_load_cartridge_normal(core_bind.manifest ? manifest.data() : info->meta, data, size);
   if (ret) {
     SuperFamicom::bus.libretro_mem_map.reverse();
     retro_memory_map map={SuperFamicom::bus.libretro_mem_map.data(), SuperFamicom::bus.libretro_mem_map.size()};
     core_bind.penviron(RETRO_ENVIRONMENT_SET_MEMORY_MAPS, (void*)&map);
-    
+
     if (SuperFamicom::cartridge.has_superfx())
       superfx_freq_orig=SuperFamicom::superfx.frequency;
   }
-  
+
   return ret;
 }
 
@@ -1012,8 +1014,7 @@ bool retro_load_game_special(unsigned game_type,
 }
 
 void retro_unload_game(void) {
-  core_bind.iface->save();
-  SuperFamicom::cartridge.unload();
+  core_bind.iface->unload();
   core_bind.sram = nullptr;
   core_bind.sram_size = 0;
 }
@@ -1099,4 +1100,3 @@ size_t retro_get_memory_size(unsigned id) {
   if(size == -1U) size = 0;
   return size;
 }
-

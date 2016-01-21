@@ -8,11 +8,25 @@ struct hash_ref {
   }
 };
 
+// Type of vectors:
+enum : unsigned {
+  VECTOR_RESET = 0xFFFC,
+  VECTOR_NMI   = 0xFFEA,
+  VECTOR_IRQ   = 0xFFEE
+};
+
+// Type of references:
+enum : unsigned {
+  REF_DIRECT   = 0,
+  REF_INDIRECT = 1,
+  REF_UNSTD    = 2
+};
+
 // Structure representing an instruction:
 struct Instruction {
   Instruction();
   void decode();
-  void decode_ref();
+  void decodeRef();
 
   CPU::reg24_t pc;  // Address.
   uint8 op;         // Opcode.
@@ -23,13 +37,13 @@ struct Instruction {
   unsigned arg;     // Argument.
 
   int  ret;         // Return address;
-  bool unstd_ret;   // Unstandard return?
+  bool unstdRet;    // Unstandard return?
 
   int ref;          // Reference.
-  int ind_ref;      // Indirect reference.
+  int indRef;       // Indirect reference.
 
   // Type of every instruction:
-  static constexpr unsigned type[] = {
+  static constexpr unsigned type[256] = {
     CPU::OPTYPE_IMM_8   , CPU::OPTYPE_IDPX , CPU::OPTYPE_IMM_8, CPU::OPTYPE_SR   ,  // $00
     CPU::OPTYPE_DP      , CPU::OPTYPE_DP   , CPU::OPTYPE_DP   , CPU::OPTYPE_ILDP ,  // $04
     CPU::OPTYPE_NONE    , CPU::OPTYPE_IMM_A, CPU::OPTYPE_A    , CPU::OPTYPE_NONE ,  // $08
@@ -130,20 +144,20 @@ struct Instruction {
 
 // Tracer class:
 struct Gilgamesh {
+  void createDatabase(sqlite3* db);
+  void writeDatabase(sqlite3* db);
+
   void trace();
-  void trace_vectors();
+  void traceVectors();
 
   std::unordered_map<unsigned, Instruction*> instructions;
+  std::unordered_map<unsigned, unsigned> vectors;
 
   std::unordered_set<std::pair<unsigned, unsigned>, hash_ref> references;
-  std::unordered_set<std::pair<unsigned, unsigned>, hash_ref> ind_references;
-  std::unordered_set<std::pair<unsigned, unsigned>, hash_ref> unstd_returns;
+  std::unordered_set<std::pair<unsigned, unsigned>, hash_ref> indReferences;
+  std::unordered_set<std::pair<unsigned, unsigned>, hash_ref> unstdReturns;
 
-  std::unordered_map<unsigned, unsigned> stack_tags;
-
-  unsigned nmi_handler;
-  unsigned irq_handler;
-  unsigned reset_handler;
+  std::unordered_map<unsigned, unsigned> stackTags;
 };
 
 extern Gilgamesh gilgamesh;

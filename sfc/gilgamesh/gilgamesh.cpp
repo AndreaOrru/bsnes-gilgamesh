@@ -17,8 +17,7 @@ Instruction::Instruction() {
   this->a8 = cpu.regs.e || cpu.regs.p.m;
   this->x8 = cpu.regs.e || cpu.regs.p.x;
 
-  // Get argument:
-  decode();
+  decode();  // Get argument.
 }
 
 void Instruction::decode() {
@@ -44,10 +43,10 @@ void Instruction::decode() {
   }
 }
 
-void Instruction::decode_ref() {
+void Instruction::decodeRef() {
   // Default values:
-  this->unstd_ret = false;
-  this->ret = this->ref = this->ind_ref = -1;
+  this->unstdRet = false;
+  this->ret = this->ref = this->indRef = -1;
 
   // Retrieve references:
   switch (type[op]) {
@@ -73,18 +72,18 @@ void Instruction::decode_ref() {
     case CPU::OPTYPE_ISRY:
     case CPU::OPTYPE_ILDP:
     case CPU::OPTYPE_ILDPY:
-      this->ind_ref = cpu.decode(type[op], arg); break;
+      this->indRef = cpu.decode(type[op], arg); break;
 
     // Indirect jumps:
     case CPU::OPTYPE_IADDRX:
     case CPU::OPTYPE_IADDR_PC:
       this->ref = cpu.decode(type[op], arg);
-      this->ind_ref = (cpu.regs.pc.b << 16) | cpu.dreadw(ref); break;
+      this->indRef = (cpu.regs.pc.b << 16) | cpu.dreadw(ref); break;
 
     // Indirect long jump:
     case CPU::OPTYPE_ILADDR:
       this->ref = cpu.decode(type[op], arg);
-      this->ind_ref = cpu.dreadl(ref); break;
+      this->indRef = cpu.dreadl(ref); break;
 
     // TODO:
     case CPU::OPTYPE_MV:
@@ -96,12 +95,12 @@ void Instruction::decode_ref() {
   }
 
   // Special instruction handling:
-  auto& stack_tags = gilgamesh.stack_tags;
+  auto& stackTags = gilgamesh.stackTags;
   switch (op) {
     // JSR, JSL:
     case 0x20: case 0x22: case 0xFC:
       // Save the location in the stack and the return address:
-      stack_tags[cpu.regs.s.w - size[type[op]] + 1] = pc.d + size[type[op]] + 1; break;
+      stackTags[cpu.regs.s.w - size[type[op]] + 1] = pc.d + size[type[op]] + 1; break;
 
     // RTS, RTL:
     case 0x60: case 0x6B:
@@ -114,13 +113,13 @@ void Instruction::decode_ref() {
       this->ret = r.d;
 
       // Check if the address in the stack and the content match what we saved before:
-      auto search = stack_tags.find(cpu.regs.s.w + 1);
-      if (search == stack_tags.end()) {
-        this->unstd_ret = true;
+      auto search = stackTags.find(cpu.regs.s.w + 1);
+      if (search == stackTags.end()) {
+        this->unstdRet = true;
       } else {
-        stack_tags.erase(search);
+        stackTags.erase(search);
         if (ret != search->second)
-          this->unstd_ret = true;
+          this->unstdRet = true;
       }
       break;
   }
@@ -131,39 +130,91 @@ void Gilgamesh::trace() {
   Instruction *i;
 
   // Have we encountered this instruction already?
-  auto i_search = instructions.find(cpu.regs.pc.d);
-  if (i_search != instructions.end()) {
-    i = i_search->second;  // Yes, retrieve it.
+  auto iSearch = instructions.find(cpu.regs.pc.d);
+  if (iSearch != instructions.end()) {
+    i = iSearch->second;  // Yes, retrieve it.
   } else {
     // No, create a new one and record it:
     i = new Instruction();
     instructions[i->pc.d] = i;
-    trace_vectors();  // Check if we have encounterd a interrupt handler.
+    traceVectors();  // Check if we have encounterd a interrupt handler.
   }
 
-  i->decode_ref();  // Get the instruction's references.
+  i->decodeRef();  // Get the instruction's references.
 
   // Log a new direct reference, if any:
   if (i->ref != -1)
     references.insert(std::make_pair(i->pc.d, i->ref));
 
   // Log a new indirect reference, if any:
-  if (i->ind_ref != -1)
-    ind_references.insert(std::make_pair(i->pc.d, i->ind_ref));
+  if (i->indRef != -1)
+    indReferences.insert(std::make_pair(i->pc.d, i->indRef));
 
   // Log a new non-standard return, if any:
-  if (i->unstd_ret)
-    unstd_returns.insert(std::make_pair(i->pc.d, i->ret));
+  if (i->unstdRet)
+    unstdReturns.insert(std::make_pair(i->pc.d, i->ret));
 }
 
 // Check if we have encountered a interrupt handler and log it:
-void Gilgamesh::trace_vectors() {
+void Gilgamesh::traceVectors() {
   if (cpu.regs.pc.d == cpu.dreadw(cpu.regs.vector))
     switch (cpu.regs.vector) {
-      case 0xFFEA:  nmi_handler   = cpu.regs.pc.d; break;
-      case 0xFFEE:  irq_handler   = cpu.regs.pc.d; break;
-      case 0xFFFC:  reset_handler = cpu.regs.pc.d; break;
+      case VECTOR_RESET:
+      case VECTOR_NMI:
+      case VECTOR_IRQ:
+        vectors[cpu.regs.vector] = cpu.regs.pc.d;
     }
+}
+
+void Gilgamesh::createDatabase(sqlite3* db) {
+  const char* sql =
+    "CREATE TABLE Instruction(pc       INTEGER NOT NULL,"
+                             "opcode   INTEGER NOT NULL,"
+                             "argument INTEGER,"
+                             "a_flag   INTEGER,"
+                             "x_flag   INTEGER,"
+                             "PRIMARY KEY (pc));"
+
+    "CREATE TABLE Reference(origin    INTEGER NOT NULL,"
+                           "reference INTEGER NOT NULL,"
+                           "type      INTEGER,"
+                           "PRIMARY KEY (origin, reference),"
+                           "FOREIGN KEY (origin) REFERENCES Instruction(pc));"
+
+    "CREATE TABLE Vector(vector INTEGER NOT NULL,"
+                        "pc     INTEGER NOT NULL,"
+                        "PRIMARY KEY (vector));";
+
+  sqlite3_exec(db, sql, NULL, NULL, NULL);
+}
+
+void Gilgamesh::writeDatabase(sqlite3* db) {
+  static char sql[4096];
+  sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+  for (auto keyValue: instructions) {
+    auto& i = *(keyValue.second);
+    sprintf(sql, "INSERT INTO Instruction VALUES(%u, %u, %u, %u, %u)", i.pc.d, i.op, i.arg, i.a8, i.x8);
+    sqlite3_exec(db, sql, NULL, NULL, NULL);
+  }
+  for (auto r: references) {
+    sprintf(sql, "INSERT INTO Reference VALUES(%u, %u, %u)", r.first, r.second, REF_DIRECT);
+    sqlite3_exec(db, sql, NULL, NULL, NULL);
+  }
+  for (auto r: indReferences) {
+    sprintf(sql, "INSERT INTO Reference VALUES(NULL, %u, %u, %u)", r.first, r.second, REF_INDIRECT);
+    sqlite3_exec(db, sql, NULL, NULL, NULL);
+  }
+  for (auto r: unstdReturns) {
+    sprintf(sql, "INSERT INTO Reference VALUES(NULL, %u, %u, %u)", r.first, r.second, REF_UNSTD);
+    sqlite3_exec(db, sql, NULL, NULL, NULL);
+  }
+  for (auto v: vectors) {
+    sprintf(sql, "INSERT INTO Vector VALUES(%u, %u)", v.first, v.second);
+    sqlite3_exec(db, sql, NULL, NULL, NULL);
+  }
+
+  sqlite3_exec(db, "COMMIT TRANSACTION", NULL, NULL, NULL);
 }
 
 

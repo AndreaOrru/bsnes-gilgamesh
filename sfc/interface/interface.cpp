@@ -351,10 +351,13 @@ void Interface::paletteUpdate(PaletteMode mode) {
 bool Interface::tracerEnable(bool trace) {
   string dbpath = {path(group(ID::ROM)), "gilgamesh.db"};
 
-  if(trace == true)
+  if(trace == true) {
     sqlite3_open(dbpath, &db);
-  else
+    gilgamesh.createDatabase(db);
+  } else {
+    gilgamesh.writeDatabase(db);
     sqlite3_close(db);
+  }
 
   return trace;
 }
