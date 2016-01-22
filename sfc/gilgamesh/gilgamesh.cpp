@@ -5,8 +5,9 @@ namespace SuperFamicom {
 
 Gilgamesh gilgamesh;
 
-constexpr unsigned Instruction::type[];
-constexpr int Instruction::size[];
+constexpr const char* Instruction::mnems[];
+constexpr unsigned Instruction::types[];
+constexpr int Instruction::sizes[];
 
 Instruction::Instruction() {
   // Basic features:
@@ -20,6 +21,16 @@ Instruction::Instruction() {
   decode();  // Get argument.
 }
 
+unsigned Instruction::size() {
+  int size = sizes[type()];
+  if (size != -1) return size;
+
+  if (type() == CPU::OPTYPE_IMM_A)
+    return a8 ? 1 : 2;
+  else
+    return x8 ? 1 : 2;
+}
+
 void Instruction::decode() {
   this->arg = 0;
 
@@ -29,14 +40,7 @@ void Instruction::decode() {
   uint24 op24 = cpu.dreadl(pc.d + 1);
 
   // Retrieve the argument:
-  switch (size[type[op]]) {
-    case -1:
-      if (type[op] == CPU::OPTYPE_IMM_A)
-        this->arg = a8 ? op8 : op16;
-      else
-        this->arg = x8 ? op8 : op16;
-      break;
-
+  switch (size()) {
     case 1: this->arg = op8;  break;
     case 2: this->arg = op16; break;
     case 3: this->arg = op24; break;
@@ -49,7 +53,7 @@ void Instruction::decodeRef() {
   this->ret = this->ref = this->indRef = -1;
 
   // Retrieve references:
-  switch (type[op]) {
+  switch (type()) {
     // No reference:
     case CPU::OPTYPE_NONE:
     case CPU::OPTYPE_A:
@@ -72,17 +76,17 @@ void Instruction::decodeRef() {
     case CPU::OPTYPE_ISRY:
     case CPU::OPTYPE_ILDP:
     case CPU::OPTYPE_ILDPY:
-      this->indRef = cpu.decode(type[op], arg); break;
+      this->indRef = cpu.decode(type(), arg); break;
 
     // Indirect jumps:
     case CPU::OPTYPE_IADDRX:
     case CPU::OPTYPE_IADDR_PC:
-      this->ref = cpu.decode(type[op], arg);
+      this->ref = cpu.decode(type(), arg);
       this->indRef = (cpu.regs.pc.b << 16) | cpu.dreadw(ref); break;
 
     // Indirect long jump:
     case CPU::OPTYPE_ILADDR:
-      this->ref = cpu.decode(type[op], arg);
+      this->ref = cpu.decode(type(), arg);
       this->indRef = cpu.dreadl(ref); break;
 
     // TODO:
@@ -91,7 +95,7 @@ void Instruction::decodeRef() {
 
     // Trust the original function:
     default:
-      this->ref = cpu.decode(type[op], arg); break;
+      this->ref = cpu.decode(type(), arg); break;
   }
 
   // Special instruction handling:
@@ -100,7 +104,7 @@ void Instruction::decodeRef() {
     // JSR, JSL:
     case 0x20: case 0x22: case 0xFC:
       // Save the location in the stack and the return address:
-      stackTags[cpu.regs.s.w - size[type[op]] + 1] = pc.d + size[type[op]] + 1; break;
+      stackTags[cpu.regs.s.w - size() + 1] = pc.d + size() + 1; break;
 
     // RTS, RTL:
     case 0x60: case 0x6B:
@@ -170,9 +174,10 @@ void Gilgamesh::createDatabase(sqlite3* db) {
   const char* sql =
     "CREATE TABLE Instruction(pc       INTEGER NOT NULL,"
                              "opcode   INTEGER NOT NULL,"
+                             "mnemonic TEXT,"
                              "argument INTEGER,"
-                             "a_flag   INTEGER,"
-                             "x_flag   INTEGER,"
+                             "size     INTEGER,"
+                             "type     INTEGER,"
                              "PRIMARY KEY (pc));"
 
     "CREATE TABLE Reference(origin    INTEGER NOT NULL,"
@@ -194,7 +199,7 @@ void Gilgamesh::writeDatabase(sqlite3* db) {
 
   for (auto keyValue: instructions) {
     auto& i = *(keyValue.second);
-    sprintf(sql, "INSERT INTO Instruction VALUES(%u, %u, %u, %u, %u)", i.pc.d, i.op, i.arg, i.a8, i.x8);
+    sprintf(sql, "INSERT INTO Instruction VALUES(%u, %u, '%s', %u, %u, %u)", i.pc.d, i.op, i.mnem(), i.arg, i.size(), i.type());
     sqlite3_exec(db, sql, NULL, NULL, NULL);
   }
   for (auto r: references) {

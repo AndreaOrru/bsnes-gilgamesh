@@ -33,7 +33,6 @@ struct Instruction {
 
   bool a8;          // 8-bit accumulator?
   bool x8;          // 8-bit index registers?
-
   unsigned arg;     // Argument.
 
   int  ret;         // Return address;
@@ -42,8 +41,46 @@ struct Instruction {
   int ref;          // Reference.
   int indRef;       // Indirect reference.
 
+  // Instruction mnemonics:
+  const char* mnem() { return mnems[op]; }
+  static constexpr const char* mnems[256] = {
+    "brk", "ora", "cop", "ora", "tsb", "ora", "asl", "ora",  // $00
+    "php", "ora", "asl", "phd", "tsb", "ora", "asl", "ora",  // $08
+    "bpl", "ora", "ora", "ora", "trb", "ora", "asl", "ora",  // $10
+    "clc", "ora", "inc", "tcs", "trb", "ora", "asl", "ora",  // $18
+    "jsr", "and", "jsl", "and", "bit", "and", "rol", "and",  // $20
+    "plp", "and", "rol", "pld", "bit", "and", "rol", "and",  // $28
+    "bmi", "and", "and", "and", "bit", "and", "rol", "and",  // $30
+    "sec", "and", "dec", "tsc", "bit", "and", "rol", "and",  // $38
+    "rti", "eor", "wdm", "eor", "mvp", "eor", "lsr", "eor",  // $40
+    "pha", "eor", "lsr", "phk", "jmp", "eor", "lsr", "eor",  // $48
+    "bvc", "eor", "eor", "eor", "mvn", "eor", "lsr", "eor",  // $50
+    "cli", "eor", "phy", "tcd", "jml", "eor", "lsr", "eor",  // $58
+    "rts", "adc", "per", "adc", "stz", "adc", "ror", "adc",  // $60
+    "pla", "adc", "ror", "rtl", "jmp", "adc", "ror", "adc",  // $68
+    "bvs", "adc", "adc", "adc", "stz", "adc", "ror", "adc",  // $70
+    "sei", "adc", "ply", "tdc", "jmp", "adc", "ror", "adc",  // $78
+    "bra", "sta", "brl", "sta", "sty", "sta", "stx", "sta",  // $80
+    "dey", "bit", "txa", "phb", "sty", "sta", "stx", "sta",  // $88
+    "bcc", "sta", "sta", "sta", "sty", "sta", "stx", "sta",  // $90
+    "tya", "sta", "txs", "txy", "stz", "sta", "stz", "sta",  // $98
+    "ldy", "lda", "ldx", "lda", "ldy", "lda", "ldx", "lda",  // $A0
+    "tay", "lda", "tax", "plb", "ldy", "lda", "ldx", "lda",  // $A8
+    "bcs", "lda", "lda", "lda", "ldy", "lda", "ldx", "lda",  // $B0
+    "clv", "lda", "tsx", "tyx", "ldy", "lda", "ldx", "lda",  // $B8
+    "cpy", "cmp", "rep", "cmp", "cpy", "cmp", "dec", "cmp",  // $C0
+    "iny", "cmp", "dex", "wai", "cpy", "cmp", "dec", "cmp",  // $C8
+    "bne", "cmp", "cmp", "cmp", "pei", "cmp", "dec", "cmp",  // $D0
+    "cld", "cmp", "phx", "stp", "jmp", "cmp", "dec", "cmp",  // $D8
+    "cpx", "sbc", "sep", "sbc", "cpx", "sbc", "inc", "sbc",  // $E0
+    "inx", "sbc", "nop", "xba", "cpx", "sbc", "inc", "sbc",  // $E8
+    "beq", "sbc", "sbc", "sbc", "pea", "sbc", "inc", "sbc",  // $F0
+    "sed", "sbc", "plx", "xce", "jsr", "sbc", "inc", "sbc",  // $F8
+  };
+
   // Type of every instruction:
-  static constexpr unsigned type[256] = {
+  unsigned type() { return types[op]; }
+  static constexpr unsigned types[256] = {
     CPU::OPTYPE_IMM_8   , CPU::OPTYPE_IDPX , CPU::OPTYPE_IMM_8, CPU::OPTYPE_SR   ,  // $00
     CPU::OPTYPE_DP      , CPU::OPTYPE_DP   , CPU::OPTYPE_DP   , CPU::OPTYPE_ILDP ,  // $04
     CPU::OPTYPE_NONE    , CPU::OPTYPE_IMM_A, CPU::OPTYPE_A    , CPU::OPTYPE_NONE ,  // $08
@@ -111,7 +148,8 @@ struct Instruction {
   };
 
   // Size of the argument, per type of opcode:
-  static constexpr int size[] = {
+  unsigned size();
+  static constexpr int sizes[] = {
      0,  // OPTYPE_NONE
      0,  // OPTYPE_A
      1,  // OPTYPE_IMM_8
