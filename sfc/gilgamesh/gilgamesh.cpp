@@ -148,15 +148,15 @@ void Gilgamesh::trace() {
 
   // Log a new direct reference, if any:
   if (i->ref != -1)
-    references.insert(std::make_pair(i->pc.d, i->ref));
+    references.insert(Reference(i->pc.d, i->ref, REF_DIRECT));
 
   // Log a new indirect reference, if any:
   if (i->indRef != -1)
-    indReferences.insert(std::make_pair(i->pc.d, i->indRef));
+    references.insert(Reference(i->pc.d, i->indRef, REF_INDIRECT));
 
   // Log a new non-standard return, if any:
   if (i->unstdRet)
-    unstdReturns.insert(std::make_pair(i->pc.d, i->ret));
+    references.insert(Reference(i->pc.d, i->ret, REF_UNSTD));
 }
 
 // Check if we have encountered a interrupt handler and log it:
@@ -203,15 +203,7 @@ void Gilgamesh::writeDatabase(sqlite3* db) {
     sqlite3_exec(db, sql, NULL, NULL, NULL);
   }
   for (auto r: references) {
-    sprintf(sql, "INSERT INTO Reference VALUES(%u, %u, %u)", r.first, r.second, REF_DIRECT);
-    sqlite3_exec(db, sql, NULL, NULL, NULL);
-  }
-  for (auto r: indReferences) {
-    sprintf(sql, "INSERT INTO Reference VALUES(NULL, %u, %u, %u)", r.first, r.second, REF_INDIRECT);
-    sqlite3_exec(db, sql, NULL, NULL, NULL);
-  }
-  for (auto r: unstdReturns) {
-    sprintf(sql, "INSERT INTO Reference VALUES(NULL, %u, %u, %u)", r.first, r.second, REF_UNSTD);
+    sprintf(sql, "INSERT INTO Reference VALUES(%u, %u, %u)", r.origin, r.reference, r.type);
     sqlite3_exec(db, sql, NULL, NULL, NULL);
   }
   for (auto v: vectors) {

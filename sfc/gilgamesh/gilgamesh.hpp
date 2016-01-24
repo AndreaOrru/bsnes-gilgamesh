@@ -1,13 +1,6 @@
 #ifdef DEBUGGER
 
 
-// Custom hash function for references (pair of integers):
-struct hash_ref {
-  size_t operator() (const std::pair<unsigned,unsigned>& p) const {
-    return std::hash<unsigned>()(p.first) ^ std::hash<unsigned>()(p.second);
-  }
-};
-
 // Type of vectors:
 enum : unsigned {
   VECTOR_RESET = 0xFFFC,
@@ -20,6 +13,29 @@ enum : unsigned {
   REF_DIRECT   = 0,
   REF_INDIRECT = 1,
   REF_UNSTD    = 2
+};
+
+// Structure representing a reference:
+struct Reference {
+  unsigned origin;
+  unsigned reference;
+  unsigned type;
+
+  Reference(unsigned origin, unsigned reference, unsigned type) :
+    origin(origin), reference(reference), type(type) {};
+
+  bool operator== (const Reference &other) const {
+    return (origin    == other.origin     &&
+            reference == other.reference  &&
+            type      == other.type);
+  }
+};
+
+// Custom hash function for references:
+struct hash_ref {
+  size_t operator() (const Reference& ref) const {
+    return std::hash<unsigned>()(ref.origin) ^ std::hash<unsigned>()(ref.reference);
+  }
 };
 
 // Structure representing an instruction:
@@ -189,13 +205,9 @@ struct Gilgamesh {
   void traceVectors();
 
   std::unordered_map<unsigned, Instruction*> instructions;
-  std::unordered_map<unsigned, unsigned> vectors;
-
-  std::unordered_set<std::pair<unsigned, unsigned>, hash_ref> references;
-  std::unordered_set<std::pair<unsigned, unsigned>, hash_ref> indReferences;
-  std::unordered_set<std::pair<unsigned, unsigned>, hash_ref> unstdReturns;
-
-  std::unordered_map<unsigned, unsigned> stackTags;
+  std::unordered_map<unsigned, unsigned>     vectors;
+  std::unordered_set<Reference, hash_ref>    references;
+  std::unordered_map<unsigned, unsigned>     stackTags;
 };
 
 extern Gilgamesh gilgamesh;
