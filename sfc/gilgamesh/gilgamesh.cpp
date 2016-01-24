@@ -186,6 +186,9 @@ void Gilgamesh::createDatabase(sqlite3* db) {
                            "PRIMARY KEY (origin, reference),"
                            "FOREIGN KEY (origin) REFERENCES Instruction(pc));"
 
+    "CREATE TABLE Subroutine(pc INTEGER NOT NULL,"
+                            "PRIMARY KEY (pc));"
+
     "CREATE TABLE Vector(vector INTEGER NOT NULL,"
                         "pc     INTEGER NOT NULL,"
                         "PRIMARY KEY (vector));";
@@ -203,6 +206,10 @@ void Gilgamesh::writeDatabase(sqlite3* db) {
     sqlite3_exec(db, sql, NULL, NULL, NULL);
   }
   for (auto r: references) {
+    if (instructions[r.origin]->isCall()) {
+      sprintf(sql, "INSERT INTO Subroutine VALUES(%u)", r.reference);
+      sqlite3_exec(db, sql, NULL, NULL, NULL);
+    }
     sprintf(sql, "INSERT INTO Reference VALUES(%u, %u, %u)", r.origin, r.reference, r.type);
     sqlite3_exec(db, sql, NULL, NULL, NULL);
   }

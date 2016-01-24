@@ -43,6 +43,7 @@ struct Instruction {
   Instruction();
   void decode();
   void decodeRef();
+  bool isCall() { return op == 0x20 || op == 0x22 || op == 0xFC; }
 
   CPU::reg24_t pc;  // Address.
   uint8 op;         // Opcode.
