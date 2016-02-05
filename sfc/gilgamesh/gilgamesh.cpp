@@ -178,6 +178,7 @@ void Gilgamesh::createDatabase(sqlite3* db) {
                              "argument INTEGER,"
                              "size     INTEGER,"
                              "type     INTEGER,"
+                             "label    TEXT,"
                              "PRIMARY KEY (pc));"
 
     "CREATE TABLE Reference(origin    INTEGER NOT NULL,"
@@ -185,9 +186,6 @@ void Gilgamesh::createDatabase(sqlite3* db) {
                            "type      INTEGER,"
                            "PRIMARY KEY (origin, reference),"
                            "FOREIGN KEY (origin) REFERENCES Instruction(pc));"
-
-    "CREATE TABLE Subroutine(pc INTEGER NOT NULL,"
-                            "PRIMARY KEY (pc));"
 
     "CREATE TABLE Vector(vector INTEGER NOT NULL,"
                         "pc     INTEGER NOT NULL,"
@@ -202,12 +200,14 @@ void Gilgamesh::writeDatabase(sqlite3* db) {
 
   for (auto keyValue: instructions) {
     auto& i = *(keyValue.second);
-    sprintf(sql, "INSERT INTO Instruction VALUES(%u, %u, '%s', %u, %u, %u)", i.pc.d, i.op, i.mnem(), i.arg, i.size(), i.type());
+    sprintf(sql, "INSERT INTO Instruction VALUES(%u, %u, '%s', %u, %u, %u, '')",
+            i.pc.d, i.op, i.mnem(), i.arg, i.size(), i.type());
     sqlite3_exec(db, sql, NULL, NULL, NULL);
   }
   for (auto r: references) {
-    if (instructions[r.origin]->isCall()) {
-      sprintf(sql, "INSERT INTO Subroutine VALUES(%u)", r.reference);
+    auto& i = *(instructions[r.origin]);
+    if (i.isCall()) {
+      sprintf(sql, "UPDATE Instruction SET label='sub_%.6X' WHERE pc=%u", r.reference, r.reference);
       sqlite3_exec(db, sql, NULL, NULL, NULL);
     }
     sprintf(sql, "INSERT INTO Reference VALUES(%u, %u, %u)", r.origin, r.reference, r.type);
