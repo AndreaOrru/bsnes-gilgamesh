@@ -174,27 +174,27 @@ void Gilgamesh::createDatabase(sqlite3* db) {
   this->db = db;
 
   sql(
-    "CREATE TABLE instructions(pc       INTEGER NOT NULL,"
-                              "opcode   INTEGER NOT NULL,"
-                              "mnemonic TEXT,"
-                              "argument INTEGER,"
-                              "size     INTEGER NOT NULL,"
-                              "type     INTEGER NOT NULL,"
-                              "PRIMARY KEY (pc));"
+    "CREATE TABLE glg_instructions(pc       INTEGER NOT NULL,"
+                                  "opcode   INTEGER NOT NULL,"
+                                  "mnemonic TEXT,"
+                                  "argument INTEGER,"
+                                  "size     INTEGER NOT NULL,"
+                                  "type     INTEGER NOT NULL,"
+                                  "PRIMARY KEY (pc));"
 
-    "CREATE TABLE subroutines(start INTEGER NOT NULL"
-                             "PRIMARY KEY (begin)"
-                             "FOREIGN KEY (begin) REFERENCES instructions(pc))"
+    "CREATE TABLE glg_subroutines(start INTEGER NOT NULL,"
+                                 "PRIMARY KEY (start),"
+                                 "FOREIGN KEY (start) REFERENCES glg_instructions(pc));"
 
-    "CREATE TABLE references(pointer INTEGER NOT NULL,"
-                            "pointee INTEGER NOT NULL,"
-                            "type    INTEGER,"
-                            "PRIMARY KEY (pointer, pointee),"
-                            "FOREIGN KEY (pointer) REFERENCES instructions(pc));"
+    "CREATE TABLE glg_references(pointer INTEGER NOT NULL,"
+                                "pointee INTEGER NOT NULL,"
+                                "type    INTEGER,"
+                                "PRIMARY KEY (pointer, pointee),"
+                                "FOREIGN KEY (pointer) REFERENCES glg_instructions(pc));"
 
-    "CREATE TABLE vectors(vector INTEGER NOT NULL,"
-                         "pc     INTEGER NOT NULL,"
-                         "PRIMARY KEY (vector));"
+    "CREATE TABLE glg_vectors(vector INTEGER NOT NULL,"
+                             "pc     INTEGER NOT NULL,"
+                             "PRIMARY KEY (vector));"
   );
 }
 
@@ -202,19 +202,19 @@ void Gilgamesh::writeDatabase() {
   sql("BEGIN TRANSACTION");
 
   for (auto r: references) {
-    if (instructions[r.pointer]->isCall())
-      sql("INSERT INTO subroutines VALUES(%u)", r.pointee);
-    sql("INSERT INTO references VALUES(%u, %u, %u)", r.pointer, r.pointee, r.type);
+    if (instructions[r.pointer]->isCall() && instructions.count(r.pointee))
+      sql("INSERT INTO glg_subroutines VALUES(%u)", r.pointee);
+    sql("INSERT INTO glg_references VALUES(%u, %u, %u)", r.pointer, r.pointee, r.type);
   }
   for (auto keyValue: instructions) {
     auto& i = *(keyValue.second);
-    sql("INSERT INTO instructions VALUES(%u, %u, '%s', %u, %u, %u)",
+    sql("INSERT INTO glg_instructions VALUES(%u, %u, '%s', %u, %u, %u)",
         i.pc.d, i.op, i.mnem(), i.arg, i.size(), i.type());
   }
   for (auto v: vectors)
-    sql("INSERT INTO vectors VALUES(%u, %u)", v.first, v.second);
+    sql("INSERT INTO glg_vectors VALUES(%u, %u)", v.first, v.second);
 
-  sql("COMMIT TRANSACTION", NULL, NULL, NULL);
+  sql("COMMIT TRANSACTION");
 }
 
 
