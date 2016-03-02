@@ -49,7 +49,7 @@ void Instruction::decode() {
 
 void Instruction::decodeRef() {
   // Default values:
-  this->unstdRet = false;
+  this->magicRet = false;
   this->ret = this->ref = this->indRef = -1;
 
   // Retrieve references:
@@ -119,11 +119,11 @@ void Instruction::decodeRef() {
       // Check if the address in the stack and the content match what we saved before:
       auto search = stackTags.find(cpu.regs.s.w + 1);
       if (search == stackTags.end()) {
-        this->unstdRet = true;
+        this->magicRet = true;
       } else {
         stackTags.erase(search);
         if (ret != search->second)
-          this->unstdRet = true;
+          this->magicRet = true;
       }
       break;
   }
@@ -155,8 +155,8 @@ void Gilgamesh::trace() {
     references.insert(Reference(i->pc.d, i->indRef, REF_INDIRECT));
 
   // Log a new non-standard return, if any:
-  if (i->unstdRet)
-    references.insert(Reference(i->pc.d, i->ret, REF_UNSTD));
+  if (i->magicRet)
+    references.insert(Reference(i->pc.d, i->ret, REF_MAGIC_RET));
 }
 
 // Check if we have encountered a interrupt handler and log it:
@@ -171,54 +171,50 @@ void Gilgamesh::traceVectors() {
 }
 
 void Gilgamesh::createDatabase(sqlite3* db) {
-  const char* sql =
-    "CREATE TABLE Instruction(pc       INTEGER NOT NULL,"
-                             "opcode   INTEGER NOT NULL,"
-                             "mnemonic TEXT,"
-                             "argument INTEGER,"
-                             "size     INTEGER,"
-                             "type     INTEGER,"
-                             "label    TEXT,"
-                             "PRIMARY KEY (pc));"
+  this->db = db;
 
-    "CREATE TABLE Reference(origin    INTEGER NOT NULL,"
-                           "reference INTEGER NOT NULL,"
-                           "type      INTEGER,"
-                           "PRIMARY KEY (origin, reference),"
-                           "FOREIGN KEY (origin) REFERENCES Instruction(pc));"
+  sql(
+    "CREATE TABLE instructions(pc       INTEGER NOT NULL,"
+                              "opcode   INTEGER NOT NULL,"
+                              "mnemonic TEXT,"
+                              "argument INTEGER,"
+                              "size     INTEGER NOT NULL,"
+                              "type     INTEGER NOT NULL,"
+                              "PRIMARY KEY (pc));"
 
-    "CREATE TABLE Vector(vector INTEGER NOT NULL,"
-                        "pc     INTEGER NOT NULL,"
-                        "PRIMARY KEY (vector));";
+    "CREATE TABLE subroutines(start INTEGER NOT NULL"
+                             "PRIMARY KEY (begin)"
+                             "FOREIGN KEY (begin) REFERENCES instructions(pc))"
 
-  sqlite3_exec(db, sql, NULL, NULL, NULL);
+    "CREATE TABLE references(pointer INTEGER NOT NULL,"
+                            "pointee INTEGER NOT NULL,"
+                            "type    INTEGER,"
+                            "PRIMARY KEY (pointer, pointee),"
+                            "FOREIGN KEY (pointer) REFERENCES instructions(pc));"
+
+    "CREATE TABLE vectors(vector INTEGER NOT NULL,"
+                         "pc     INTEGER NOT NULL,"
+                         "PRIMARY KEY (vector));"
+  );
 }
 
-void Gilgamesh::writeDatabase(sqlite3* db) {
-  static char sql[4096];
-  sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+void Gilgamesh::writeDatabase() {
+  sql("BEGIN TRANSACTION");
 
+  for (auto r: references) {
+    if (instructions[r.pointer]->isCall())
+      sql("INSERT INTO subroutines VALUES(%u)", r.pointee);
+    sql("INSERT INTO references VALUES(%u, %u, %u)", r.pointer, r.pointee, r.type);
+  }
   for (auto keyValue: instructions) {
     auto& i = *(keyValue.second);
-    sprintf(sql, "INSERT INTO Instruction VALUES(%u, %u, '%s', %u, %u, %u, '')",
-            i.pc.d, i.op, i.mnem(), i.arg, i.size(), i.type());
-    sqlite3_exec(db, sql, NULL, NULL, NULL);
+    sql("INSERT INTO instructions VALUES(%u, %u, '%s', %u, %u, %u)",
+        i.pc.d, i.op, i.mnem(), i.arg, i.size(), i.type());
   }
-  for (auto r: references) {
-    auto& i = *(instructions[r.origin]);
-    if (i.isCall()) {
-      sprintf(sql, "UPDATE Instruction SET label='sub_%.6X' WHERE pc=%u", r.reference, r.reference);
-      sqlite3_exec(db, sql, NULL, NULL, NULL);
-    }
-    sprintf(sql, "INSERT INTO Reference VALUES(%u, %u, %u)", r.origin, r.reference, r.type);
-    sqlite3_exec(db, sql, NULL, NULL, NULL);
-  }
-  for (auto v: vectors) {
-    sprintf(sql, "INSERT INTO Vector VALUES(%u, %u)", v.first, v.second);
-    sqlite3_exec(db, sql, NULL, NULL, NULL);
-  }
+  for (auto v: vectors)
+    sql("INSERT INTO vectors VALUES(%u, %u)", v.first, v.second);
 
-  sqlite3_exec(db, "COMMIT TRANSACTION", NULL, NULL, NULL);
+  sql("COMMIT TRANSACTION", NULL, NULL, NULL);
 }
 
 

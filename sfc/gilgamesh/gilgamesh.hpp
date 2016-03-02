@@ -10,31 +10,31 @@ enum : unsigned {
 
 // Type of references:
 enum : unsigned {
-  REF_DIRECT   = 0,
-  REF_INDIRECT = 1,
-  REF_UNSTD    = 2
+  REF_DIRECT    = 0,
+  REF_INDIRECT  = 1,
+  REF_MAGIC_RET = 2
 };
 
 // Structure representing a reference:
 struct Reference {
-  unsigned origin;
-  unsigned reference;
+  unsigned pointer;
+  unsigned pointee;
   unsigned type;
 
-  Reference(unsigned origin, unsigned reference, unsigned type) :
-    origin(origin), reference(reference), type(type) {};
+  Reference(unsigned pointer, unsigned pointee, unsigned type) :
+    pointer(pointer), pointee(pointee), type(type) {};
 
-  bool operator== (const Reference &other) const {
-    return (origin    == other.origin     &&
-            reference == other.reference  &&
-            type      == other.type);
+  bool operator== (const Reference& other) const {
+    return (pointer == other.pointer &&
+            pointee == other.pointee &&
+            type    == other.type);
   }
 };
 
 // Custom hash function for references:
 struct hash_ref {
   size_t operator() (const Reference& ref) const {
-    return std::hash<unsigned>()(ref.origin) ^ std::hash<unsigned>()(ref.reference);
+    return std::hash<unsigned>()(ref.pointer) ^ std::hash<unsigned>()(ref.pointee);
   }
 };
 
@@ -47,13 +47,15 @@ struct Instruction {
 
   CPU::reg24_t pc;  // Address.
   uint8 op;         // Opcode.
+  string label;     // Label.
 
   bool a8;          // 8-bit accumulator?
   bool x8;          // 8-bit index registers?
   unsigned arg;     // Argument.
 
+  // Volatile variables; can vary at each iteration:
   int  ret;         // Return address;
-  bool unstdRet;    // Unstandard return?
+  bool magicRet;    // Magic return?
 
   int ref;          // Reference.
   int indRef;       // Indirect reference.
@@ -200,7 +202,14 @@ struct Instruction {
 // Tracer class:
 struct Gilgamesh {
   void createDatabase(sqlite3* db);
-  void writeDatabase(sqlite3* db);
+  void writeDatabase();
+
+  template<typename... Args> void sql(const char* format, Args... args) {
+    static char s[4096];
+    sprintf(s, format, args...);
+    sqlite3_exec(db, s, NULL, NULL, NULL);
+  }
+  void sql(const char* s) { sql("%s", s); }
 
   void trace();
   void traceVectors();
@@ -209,6 +218,8 @@ struct Gilgamesh {
   std::unordered_map<unsigned, unsigned>     vectors;
   std::unordered_set<Reference, hash_ref>    references;
   std::unordered_map<unsigned, unsigned>     stackTags;
+
+  sqlite3* db;
 };
 
 extern Gilgamesh gilgamesh;

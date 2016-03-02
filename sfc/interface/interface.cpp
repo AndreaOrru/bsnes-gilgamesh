@@ -355,7 +355,7 @@ bool Interface::tracerEnable(bool trace) {
     sqlite3_open(dbpath, &db);
     gilgamesh.createDatabase(db);
   } else {
-    gilgamesh.writeDatabase(db);
+    gilgamesh.writeDatabase();
     sqlite3_close(db);
   }
 
