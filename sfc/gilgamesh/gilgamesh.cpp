@@ -5,7 +5,6 @@ namespace SuperFamicom {
 
 Gilgamesh gilgamesh;
 
-constexpr const char* Instruction::mnems[];
 constexpr unsigned Instruction::types[];
 constexpr int Instruction::sizes[];
 
@@ -176,7 +175,6 @@ void Gilgamesh::createDatabase(sqlite3* db) {
   sql(
     "CREATE TABLE glg_instructions(pc       INTEGER NOT NULL,"
                                   "opcode   INTEGER NOT NULL,"
-                                  "mnemonic TEXT,"
                                   "argument INTEGER,"
                                   "size     INTEGER NOT NULL,"
                                   "type     INTEGER NOT NULL,"
@@ -208,8 +206,8 @@ void Gilgamesh::writeDatabase() {
   }
   for (auto keyValue: instructions) {
     auto& i = *(keyValue.second);
-    sql("INSERT INTO glg_instructions VALUES(%u, %u, '%s', %u, %u, %u)",
-        i.pc.d, i.op, i.mnem(), i.arg, i.size(), i.type());
+    sql("INSERT INTO glg_instructions VALUES(%u, %u, %u, %u, %u)",
+        i.pc.d, i.op, i.arg, i.size(), i.type());
   }
   for (auto v: vectors)
     sql("INSERT INTO glg_vectors VALUES(%u, %u)", v.first, v.second);
